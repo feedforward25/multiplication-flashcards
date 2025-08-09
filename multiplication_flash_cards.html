@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Multiplication Flash Cards</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f172a">
+<style>
+  :root {
+    --bg: #0f172a; --panel: #111827; --muted: #94a3b8; --text: #e5e7eb;
+    --accent:#60a5fa; --accent2:#34d399; --danger:#fb7185; --ok:#a7f3d0;
+    --shadow: 0 10px 30px rgba(0,0,0,.35); --radius:16px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,Apple Color Emoji,Segoe UI Emoji;background:radial-gradient(1200px 800px at 20% -10%,#1f2937 0%,var(--bg) 50%);color:var(--text);min-height:100dvh;display:grid;place-items:center;padding:24px}
+  .app{width:min(960px,100%);background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,0));border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.06)}
+  header h1{font-size:clamp(18px,2.2vw,24px);margin:0}
+  header .sub{color:var(--muted);font-size:12px}
+  main{padding:20px}
+  .home-grid{display:grid;gap:16px;grid-template-columns:1fr 320px}
+  @media (max-width:760px){.home-grid{grid-template-columns:1fr}}
+  .card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:16px}
+  .chips{display:flex;flex-wrap:wrap;gap:10px}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:var(--text);cursor:pointer;user-select:none}
+  .chip.on{border-color:rgba(96,165,250,.6);box-shadow:inset 0 0 0 1px rgba(96,165,250,.35)}
+  .chip input[type="checkbox"] { width:16px; height:16px; }
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .btn{appearance:none;border:1px solid rgba(255,255,255,.1);background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));color:var(--text);padding:12px 16px;border-radius:12px;cursor:pointer;font-weight:600}
+  .btn.primary{border-color:rgba(96,165,250,.6)}
+  .btn.stop{border-color:rgba(251,113,133,.6)}
+  .btn.small{padding:8px 12px;font-weight:500}
+  .muted{color:var(--muted)}
+  .quiz{display:grid;gap:18px;text-align:center;padding:10px}
+  .fact{font-size:clamp(28px,8vw,64px);font-weight:800}
+  .options{display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr));max-width:600px;margin:0 auto}
+  .opt{
+    padding:14px 16px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,.08);
+    background:rgba(255,255,255,.03);
+    cursor:pointer;
+    font-size:18px;
+    font-weight:600;
+    color: var(--text); /* ensure readable */
+  }
+  .opt.correct{border-color:rgba(52,211,153,.6)}
+  .opt.wrong{border-color:rgba(251,113,133,.6)}
+  .bar{height:8px;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden}
+  .bar>span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .3s ease}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,.06)}
+  th{color:var(--muted);font-weight:600}
+  .pill{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.12);color:var(--muted)}
+  .right{color:var(--ok)} .wrong{color:var(--danger)}
+  footer{padding:14px 20px;color:var(--muted);font-size:12px;text-align:center}
+  #confetti{position:fixed;inset:0;pointer-events:none}
+  .install-hint{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<canvas id="confetti"></canvas>
+<div class="app">
+  <header>
+    <div>
+      <h1>Multiplication Flash Cards</h1>
+      <div class="sub">Adaptive practice • 1–10 • Offline-ready</div>
+    </div>
+    <div class="row" id="topActions" style="gap:8px;">
+      <button class="btn" id="installBtn" style="display:none;">Install</button>
+      <button class="btn stop" id="stopBtn" style="display:none;">Stop</button>
+    </div>
+  </header>
+
+  <!-- HOME -->
+  <main id="screenHome">
+    <div class="home-grid">
+      <div class="card">
+        <h3 style="margin:4px 0 12px;">Choose Tables</h3>
+        <div class="chips" id="chips"></div>
+        <div style="height:12px;"></div>
+        <div class="row">
+          <button class="btn small" id="selAll">Select all</button>
+          <button class="btn small" id="selNone">Clear</button>
+          <span class="muted" id="selInfo" style="margin-left:auto;">0 selected</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="margin:4px 0 12px;">Session</h3>
+        <div class="muted" style="margin-bottom:10px;">We’ll drill your selected tables, showing tricky ones more often and mastered ones less.</div>
+        <div class="bar" title="Mastery (within this session)"><span id="mastery"></span></div>
+        <div style="height:12px;"></div>
+        <button class="btn primary" id="startBtn">Start Practice</button>
+        <div class="install-hint" id="installHint" style="margin-top:8px;display:none;">Tip: On iPhone/iPad, tap Share → Add to Home Screen.</div>
+        <div class="row" style="margin-top:8px;">
+          <label class="pill">6 choices per question</label>
+          <label class="pill">Confetti on correct 🎉</label>
+          <label class="pill">Adaptive weighting</label>
+          <label class="pill">Offline ready</label>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- QUIZ -->
+  <main id="screenQuiz" style="display:none;">
+    <div class="quiz">
+      <div class="fact" id="factText"></div>
+      <div class="options" id="options"></div>
+      <div class="row" style="justify-content:center;gap:10px;">
+        <button class="btn stop" id="stopBtn2">Stop</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- SUMMARY -->
+  <main id="screenSummary" style="display:none;">
+    <div class="card">
+      <h3>Session Summary</h3>
+      <div class="row" style="gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <span class="pill">Questions: <strong id="sumQs">0</strong></span>
+        <span class="pill">Accuracy: <strong id="sumAcc">0%</strong></span>
+      </div>
+      <div style="overflow:auto;max-height:50vh;">
+        <table id="summaryTable">
+          <thead>
+            <tr><th>Fact</th><th>Seen</th><th>Right</th><th>Accuracy</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="row" style="margin-top:14px;justify-content:flex-end;">
+        <button class="btn" id="backHome">Back to Home</button>
+        <button class="btn primary" id="startAgain">Start New Session</button>
+      </div>
+    </div>
+  </main>
+
+  <footer>Tip: pick a few tables (like 6, 7, 8) for focused practice.</footer>
+</div>
+
+<script>
+/***********************
+ * PWA registration
+ ***********************/
+let deferredPrompt = null;
+const installBtn = document.getElementById('installBtn');
+const installHint = document.getElementById('installHint');
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  });
+}
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn.style.display = 'inline-block';
+});
+installBtn?.addEventListener('click', async ()=>{
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  installBtn.style.display = 'none';
+});
+(function iosHint(){
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  if (isIOS && !isStandalone) installHint.style.display='block';
+})();
+
+/***********************
+ * Confetti (single ctx)
+ ***********************/
+const confettiCanvas = document.getElementById('confetti');
+const ctx = confettiCanvas.getContext('2d');
+function resizeCanvas(){ confettiCanvas.width = innerWidth; confettiCanvas.height = innerHeight; }
+addEventListener('resize', resizeCanvas); resizeCanvas();
+function launchConfetti(){
+  let particles=[]; const count=160;
+  for (let i=0;i<count;i++){
+    particles.push({x:Math.random()*confettiCanvas.width,y:-20-Math.random()*50,vx:(Math.random()-0.5)*4,vy:2+Math.random()*4,size:4+Math.random()*6,rot:Math.random()*Math.PI,vr:(Math.random()-0.5)*0.2,life:120+Math.random()*60});
+  }
+  (function tick(){
+    ctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+    particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.rot+=p.vr;p.vy+=0.03;p.life--;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.fillStyle=`hsl(${(p.x+p.y)%360},85%,${60+(p.size*2)%30}%)`;ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size);ctx.restore();});
+    particles=particles.filter(p=>p.life>0&&p.y<confettiCanvas.height+40);
+    if(particles.length>0) requestAnimationFrame(tick);
+  })();
+}
+
+/***********************
+ * App state & helpers
+ ***********************/
+const state = {
+  selected: new Set([...Array(10).keys()].map(n=>n+1)), // 1..10
+  facts: [], current: null, sessionActive: false, asked: 0, right: 0,
+};
+const chipsWrap = document.getElementById('chips');
+const selAllBtn  = document.getElementById('selAll');
+const selNoneBtn = document.getElementById('selNone');
+const selInfo    = document.getElementById('selInfo');
+const startBtn   = document.getElementById('startBtn');
+const stopBtn    = document.getElementById('stopBtn');
+const stopBtn2   = document.getElementById('stopBtn2');
+const screenHome = document.getElementById('screenHome');
+const screenQuiz = document.getElementById('screenQuiz');
+const screenSummary = document.getElementById('screenSummary');
+const factText = document.getElementById('factText');
+const optionsEl= document.getElementById('options');
+const sumQs   = document.getElementById('sumQs');
+const sumAcc  = document.getElementById('sumAcc');
+const summaryTableBody = document.querySelector('#summaryTable tbody');
+const backHome = document.getElementById('backHome');
+const startAgain = document.getElementById('startAgain');
+const masteryBar = document.getElementById('mastery');
+
+function renderChips() {
+  chipsWrap.innerHTML = '';
+  for (let n = 1; n <= 10; n++) {
+    const id = `tbl-${n}`;
+    const wrap = document.createElement('label');
+    wrap.className = 'chip' + (state.selected.has(n) ? ' on' : '');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.id = id; cb.checked = state.selected.has(n);
+    cb.addEventListener('change', () => {
+      if (cb.checked) state.selected.add(n); else state.selected.delete(n);
+      renderChips(); updateSelInfo();
+    });
+    wrap.appendChild(cb);
+    wrap.appendChild(document.createTextNode(` ${n}s`));
+    chipsWrap.appendChild(wrap);
+  }
+}
+function updateSelInfo() {
+  selInfo.textContent = `${state.selected.size} selected`;
+  const total = state.selected.size * 10;
+  const mastered = state.facts.filter(f=> state.selected.has(f.a) && f.seen>0 && (f.correct/f.seen)>=0.85).length;
+  const pct = total ? Math.round((mastered/total)*100) : 0;
+  masteryBar.style.width = pct + '%';
+}
+renderChips(); updateSelInfo();
+
+function initFacts(){
+  state.facts = [];
+  for (const a of state.selected) {
+    for (let b=1;b<=10;b++){
+      state.facts.push({ a, b, key: `${a}x${b}`, weight: 3, seen: 0, correct: 0 });
+    }
+  }
+}
+function pickFact() {
+  const pool = state.facts; if (!pool.length) return null;
+  const totalW = pool.reduce((s,f)=>s+Math.max(1,f.weight), 0);
+  let r = Math.random()*totalW;
+  for (const f of pool){ r -= Math.max(1,f.weight); if (r <= 0) return f; }
+  return pool[pool.length-1];
+}
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
+function genChoices(a,b){
+  const correct = a*b; const choices = new Set([correct]);
+  const add = (v)=>{ if (v>=0 && v<=100) choices.add(v); };
+  const offsets = [1,2,3,4,5,6,7,8,9]; shuffle(offsets);
+  for (const off of offsets){ if (choices.size>=6) break; add(correct+off); if (choices.size>=6) break; add(correct-off); }
+  while (choices.size < 6) { add(Math.floor(Math.random()*101)); }
+  const list = [...choices]; shuffle(list); return list;
+}
+
+function showScreen(which){
+  screenHome.style.display = which==='home'?'block':'none';
+  screenQuiz.style.display = which==='quiz'?'block':'none';
+  screenSummary.style.display = which==='summary'?'block':'none';
+  stopBtn.style.display = which==='quiz'? 'inline-block':'none';
+}
+function startSession(){
+  if (state.selected.size===0) { alert('Pick at least one table.'); return; }
+  initFacts(); state.sessionActive = true; state.asked = 0; state.right = 0; updateSelInfo();
+  showScreen('quiz'); askNext();
+}
+function endSession(){ buildSummary(); showScreen('summary'); }
+function askNext(){
+  const fact = pickFact(); state.current = fact;
+  factText.textContent = `${fact.a} × ${fact.b}`;
+  const choices = genChoices(fact.a, fact.b);
+  optionsEl.innerHTML = '';
+  choices.forEach(val=>{
+    const btn = document.createElement('button');
+    btn.className = 'opt'; btn.textContent = val;
+    btn.addEventListener('click', ()=>handleAnswer(val));
+    optionsEl.appendChild(btn);
+  });
+}
+function handleAnswer(val){
+  if (!state.current) return;
+  const fact = state.current; const answer = fact.a * fact.b;
+  const buttons = Array.from(optionsEl.children); buttons.forEach(b=>b.disabled = true);
+  fact.seen += 1; state.asked += 1;
+  if (val === answer){
+    state.right += 1; fact.correct += 1;
+    fact.weight = Math.max(1, Math.round(fact.weight*0.7));
+    launchConfetti();
+    buttons.forEach(b=>{ if (+b.textContent===answer) b.classList.add('correct'); });
+  } else {
+    fact.weight = Math.min(20, Math.round(fact.weight * 1.5) + 1);
+    buttons.forEach(b=>{
+      if (+b.textContent===answer) b.classList.add('correct');
+      if (+b.textContent===val) b.classList.add('wrong');
+    });
+  }
+  setTimeout(()=>{ if (state.sessionActive) askNext(); }, 600);
+}
+
+function buildSummary(){
+  const rows = state.facts.filter(f=>f.seen>0);
+  summaryTableBody.innerHTML = '';
+  let correctAll = 0, seenAll = 0;
+  rows.sort((a,b)=> (a.a-b.a) || (a.b-b.b)).forEach(f=>{
+    correctAll += f.correct; seenAll += f.seen;
+    const acc = f.correct / f.seen;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${f.a} × ${f.b}</td><td>${f.seen}</td><td class="right">${f.correct}</td><td>${Math.round(acc*100)}%</td>`;
+    summaryTableBody.appendChild(tr);
+  });
+  sumQs.textContent = seenAll; sumAcc.textContent = seenAll ? Math.round((correctAll/seenAll)*100) + '%' : '0%';
+}
+
+selAllBtn.addEventListener('click', ()=>{ state.selected = new Set([...Array(10).keys()].map(n=>n+1)); renderChips(); updateSelInfo(); });
+selNoneBtn.addEventListener('click', ()=>{ state.selected.clear(); renderChips(); updateSelInfo(); });
+startBtn.addEventListener('click', startSession);
+stopBtn.addEventListener('click', ()=>{ state.sessionActive=false; endSession(); });
+stopBtn2.addEventListener('click', ()=>{ state.sessionActive=false; endSession(); });
+backHome.addEventListener('click', ()=>{ showScreen('home'); updateSelInfo(); });
+startAgain.addEventListener('click', startSession);
+
+/***********************
+ * Smoke tests in console
+ ***********************/
+(function runSmoke(){
+  console.group('Smoke tests');
+  console.assert(typeof launchConfetti==='function','confetti available');
+  console.assert(document.querySelector('#chips'), 'chips container exists');
+  console.assert(typeof startSession==='function','startSession available');
+  console.assert(typeof handleAnswer==='function','handleAnswer available');
+  console.groupEnd();
+})();
+</script>
+</body>
+</html>
