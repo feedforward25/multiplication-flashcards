@@ -1,5 +1,5 @@
 // Basic offline cache
-const CACHE = 'mf-cache-v1';
+const CACHE = 'mf-cache-v2';
 const ASSETS = [
   './',
   './index.html',
